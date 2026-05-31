@@ -1,0 +1,40 @@
+# Render — PostgreSQL + Web Service Django + Cloudinary
+# https://render.com/docs/infrastructure-as-code
+#
+# Déploiement : New Blueprint → repo Git, root restaurant_backend.
+# Puis renseigner ALLOWED_HOSTS, CORS_ALLOWED_ORIGINS et CLOUDINARY_* dans le dashboard.
+
+databases:
+  - name: chezwizi-db
+    databaseName: chezwizi
+    user: chezwizi
+    plan: free
+
+services:
+  - type: web
+    name: chezwizi-api
+    runtime: python
+    plan: free
+    buildCommand: ./build.sh
+    startCommand: gunicorn restaurant_backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: chezwizi-db
+          property: connectionString
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
