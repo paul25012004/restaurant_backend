@@ -136,13 +136,19 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+import sys
+print(f"--- STORAGE DEBUG --- CLOUDINARY_CLOUD_NAME is: '{os.environ.get('CLOUDINARY_CLOUD_NAME')}'", file=sys.stderr)
+
 if os.environ.get('CLOUDINARY_CLOUD_NAME'):
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    print("--- STORAGE DEBUG --- Cloudinary Storage is ACTIVE!", file=sys.stderr)
     CLOUDINARY_STORAGE = {
         'CLOUD_NAME': os.environ['CLOUDINARY_CLOUD_NAME'],
         'API_KEY': os.environ.get('CLOUDINARY_API_KEY', ''),
         'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', ''),
     }
+else:
+    print("--- STORAGE DEBUG --- Cloudinary Storage is NOT active. Falling back to Local Storage.", file=sys.stderr)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'core.User'
