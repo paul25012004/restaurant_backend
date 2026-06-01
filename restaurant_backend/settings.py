@@ -9,6 +9,31 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# --- CHARGEMENT AUTOMATIQUE DU FICHIER .ENV (Local) ---
+env_path = BASE_DIR / '.env'
+if env_path.exists():
+    import sys
+    print("--- ENV DEBUG --- Loading .env file...", file=sys.stderr)
+    with open(env_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            if '=' in line:
+                key, val = line.split('=', 1)
+                key = key.strip()
+                val = val.strip().strip('"').strip("'")
+                if key not in os.environ:
+                    os.environ[key] = val
+
+# Détection robuste de Cloudinary avec toutes les variations possibles
+USE_CLOUDINARY = bool(
+    os.environ.get('CLOUDINARY_CLOUD_NAME') or 
+    os.environ.get('CLOUDINARY_CLOUDNAME') or 
+    os.environ.get('CLOUD_NAME') or 
+    os.environ.get('CLOUDINARY_URL')
+)
+
 
 def _env_bool(key: str, default: bool = False) -> bool:
     return os.environ.get(key, str(default)).lower() in ('1', 'true', 'yes', 'on')
@@ -40,7 +65,7 @@ INSTALLED_APPS = [
 ]
 
 # Cloudinary — stockage média en production
-if os.environ.get('CLOUDINARY_CLOUD_NAME'):
+if USE_CLOUDINARY:
     INSTALLED_APPS = [
         'cloudinary_storage',
         'cloudinary',
@@ -138,7 +163,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 STORAGES = {
     "default": {
-        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage" if os.environ.get('CLOUDINARY_CLOUD_NAME') else "django.core.files.storage.FileSystemStorage",
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage" if USE_CLOUDINARY else "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.StaticFilesStorage",
@@ -146,16 +171,36 @@ STORAGES = {
 }
 
 import sys
-print(f"--- STORAGE DEBUG --- CLOUDINARY_CLOUD_NAME is: '{os.environ.get('CLOUDINARY_CLOUD_NAME')}'", file=sys.stderr)
+# Diagnostics ultra-précis pour aider l'utilisateur à identifier les erreurs de configuration sur Render
+print("--- STARTUP DIAGNOSTICS: CLOUDINARY ---", file=sys.stderr)
+print(f"  CLOUDINARY_CLOUD_NAME: '{os.environ.get('CLOUDINARY_CLOUD_NAME')}'", file=sys.stderr)
+print(f"  CLOUDINARY_CLOUDNAME : '{os.environ.get('CLOUDINARY_CLOUDNAME')}'", file=sys.stderr)
+print(f"  CLOUD_NAME           : '{os.environ.get('CLOUD_NAME')}'", file=sys.stderr)
+print(f"  CLOUDINARY_URL       : '{'Configured' if os.environ.get('CLOUDINARY_URL') else 'None'}'", file=sys.stderr)
+print(f"  CLOUDINARY_API_KEY   : '{'Configured' if os.environ.get('CLOUDINARY_API_KEY') or os.environ.get('API_KEY') else 'None'}'", file=sys.stderr)
+print(f"  CLOUDINARY_API_SECRET: '{'Configured' if os.environ.get('CLOUDINARY_API_SECRET') or os.environ.get('API_SECRET') else 'None'}'", file=sys.stderr)
+print(f"  Result -> USE_CLOUDINARY = {USE_CLOUDINARY}", file=sys.stderr)
+print("---------------------------------------", file=sys.stderr)
 
-if os.environ.get('CLOUDINARY_CLOUD_NAME'):
+if USE_CLOUDINARY:
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
     print("--- STORAGE DEBUG --- Cloudinary Storage is ACTIVE!", file=sys.stderr)
-    CLOUDINARY_STORAGE = {
-        'CLOUD_NAME': os.environ['CLOUDINARY_CLOUD_NAME'],
-        'API_KEY': os.environ.get('CLOUDINARY_API_KEY', ''),
-        'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', ''),
-    }
+    
+    # Récupération résiliente des credentials
+    cloud_name = (
+        os.environ.get('CLOUDINARY_CLOUD_NAME') or 
+        os.environ.get('CLOUDINARY_CLOUDNAME') or 
+        os.environ.get('CLOUD_NAME')
+    )
+    api_key = os.environ.get('CLOUDINARY_API_KEY') or os.environ.get('API_KEY')
+    api_secret = os.environ.get('CLOUDINARY_API_SECRET') or os.environ.get('API_SECRET')
+    
+    if cloud_name:
+        CLOUDINARY_STORAGE = {
+            'CLOUD_NAME': cloud_name,
+            'API_KEY': api_key or '',
+            'API_SECRET': api_secret or '',
+        }
 else:
     print("--- STORAGE DEBUG --- Cloudinary Storage is NOT active. Falling back to Local Storage.", file=sys.stderr)
 
